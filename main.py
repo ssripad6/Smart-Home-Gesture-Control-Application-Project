@@ -106,76 +106,17 @@ def read_middle_frame(video_path: Path) -> np.ndarray:
 
 
 def get_extractor():
-    if hasattr(HandShapeFeatureExtractor, "get_Instance"):
-        return HandShapeFeatureExtractor.get_Instance()
-    if hasattr(HandShapeFeatureExtractor, "get_instance"):
-        return HandShapeFeatureExtractor.get_instance()
-    return HandShapeFeatureExtractor()
-
+    return HandShapeFeatureExtractor.get_instance()
 
 def feature_from_frame(extractor, frame_bgr: np.ndarray, video_path: Optional[Path] = None) -> np.ndarray:
-   
-   
-    if frame_bgr.ndim == 2:
-        frame_gray = frame_bgr
-        frame_bgr3 = cv2.cvtColor(frame_gray, cv2.COLOR_GRAY2BGR)
-        frame_rgb  = cv2.cvtColor(frame_gray, cv2.COLOR_GRAY2RGB)
+    # extractor preprocessing expects a 2D image because it does np.stack((img_arr,)*3, axis=-1)
+    if frame_bgr.ndim == 3:
+        frame_gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     else:
-        frame_bgr3 = frame_bgr
-        frame_gray = cv2.cvtColor(frame_bgr3, cv2.COLOR_BGR2GRAY)
-        frame_rgb  = cv2.cvtColor(frame_bgr3, cv2.COLOR_BGR2RGB)
+        frame_gray = frame_bgr
 
-    candidate_methods = [
-        "extract_feature",
-        "extractFeature",
-        "get_feature",
-        "getFeature",
-        "extract",
-        "get_embedding",
-        "getEmbedding",
-        "get_penultimate",
-        "get_penultimate_layer",
-        "getPenultimateLayer",
-        "predict",  
-    ]
-
-    for name in candidate_methods:
-        if hasattr(extractor, name):
-            fn = getattr(extractor, name)
-
-            for arg in (frame_gray, frame_rgb, frame_bgr3):
-                try:
-                    out = fn(arg)
-                    vec = np.asarray(out).reshape(-1)
-                    if vec.size > 0:
-                        return vec.astype(np.float32)
-                except Exception:
-                    pass
-
-            if video_path is not None:
-                try:
-                    out = fn(str(video_path))
-                    vec = np.asarray(out).reshape(-1)
-                    if vec.size > 0:
-                        return vec.astype(np.float32)
-                except Exception:
-                    pass
-
-    if callable(extractor):
-        for arg in (frame_rgb, frame_bgr, frame_gray):
-            try:
-                out = extractor(arg)
-                vec = np.asarray(out).reshape(-1)
-                if vec.size > 0:
-                    return vec.astype(np.float32)
-            except Exception:
-                pass
-
-    raise RuntimeError(
-        "Could not extract features from HandShapeFeatureExtractor.\n"
-        "Open handshape_feature_extractor.py and check what method returns the feature vector, "
-        "then update candidate_methods in main.py to match."
-    )
+    out = extractor.extract_feature(frame_gray)
+    return np.asarray(out, dtype=np.float32).reshape(-1)
 
 
 def label_from_train_filename(video_path: Path) -> int:
