@@ -31,6 +31,7 @@ NAME_TO_LABEL.update(
         _norm("Decrease Fan Speed"): 10,
         _norm("DecreaseFanSpeed"): 10,
         _norm("FanDown"): 10,
+        _norm("DecereaseFanSpeed"):10,
 
         _norm("FanOff"): 11,
         _norm("FanOn"): 12,
@@ -121,18 +122,31 @@ def feature_from_frame(extractor, frame_bgr: np.ndarray, video_path: Optional[Pa
 
 def label_from_train_filename(video_path: Path) -> int:
     stem = video_path.stem
+    m = re.fullmatch(r"T\d+-H-(.+)", stem, flags=re.IGNORECASE)
+    if m:
+        gesture_part = m.group(1).strip()
+
+        # numeric gestures: 0..9
+        if gesture_part.isdigit():
+            return int(gesture_part)
+
+        # named gestures
+        key = _norm(gesture_part)
+        if key in NAME_TO_LABEL:
+            return int(NAME_TO_LABEL[key])
 
     parts = re.split(r"_practice_", stem, flags=re.IGNORECASE)
     gesture = parts[0] if parts else stem
     key = _norm(gesture)
-    m = re.fullmatch(r"num(\d)", key)
+
+    m = re.fullmatch(r"num(\d+)", key)
     if m:
         return int(m.group(1))
 
     if key in NAME_TO_LABEL:
         return int(NAME_TO_LABEL[key])
 
-    raise ValueError(f"Cannot map training filename to label: {video_path.name} (gesture='{gesture}')")
+    raise ValueError(f"Cannot map training filename to label: {video_path.name} (stem='{stem}')")
 
 
 def l2_normalize_rows(X: np.ndarray, eps: float = 1e-12) -> np.ndarray:
